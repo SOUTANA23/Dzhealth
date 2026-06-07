@@ -1,18 +1,27 @@
 {
-  "name": "DzHealth",
-  "short_name": "DzHealth",
-  "description": "كل الخدمات الصحية في مكان واحد",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#060d1a",
-  "theme_color": "#060d1a",
-  "orientation": "portrait",
-  "icons": [
-    {
-      "src": "/favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "maskable any"
-    }
-  ]
+"id": "dzhealth.app",
+"name": "DzHealth",
+"short_name": "DzHealth",
+"description": "كل الخدمات الصحية في مكان واحد",
+"lang": "ar-DZ",
+"dir": "rtl",
+"start_url": "/",
+"scope": "/",
+"display": "standalone",
+"orientation": "portrait",
+"background_color": "#060d1a",
+"theme_color": "#060d1a",
+"categories": [
+"health",
+"medical"
+],
+"icons": [
+{
+"src": "/favicon.svg",
+"sizes": "any",
+"type": "image/svg+xml",
+"purpose": "any maskable"
 }
+]
+}
+
