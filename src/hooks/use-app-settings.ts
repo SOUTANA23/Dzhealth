@@ -1,13 +1,12 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
-import type { Language, TranslationKey } from "@/lib/i18n.ts";
-import { translations } from "@/lib/i18n.ts";
+import { createContext, useContext, useEffect, useState } from "react";
+import { getLanguage, setLanguage as setLang, t as translate, isRTL as checkRTL, type Language } from "@/lib/i18n";
 
 type Theme = "light" | "dark";
 
 interface AppSettingsContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
-  t: (key: TranslationKey) => string;
+  t: (key: string) => string;
   theme: Theme;
   setTheme: (theme: Theme) => void;
   isRTL: boolean;
@@ -36,6 +35,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
     localStorage.setItem("language", lang);
+    setLang(lang);
   };
 
   const setTheme = (t: Theme) => {
@@ -53,7 +53,6 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     localStorage.setItem("notifications_enabled", val ? "true" : "false");
   };
 
-  // Apply theme & direction to document
   useEffect(() => {
     const root = document.documentElement;
     if (theme === "dark") {
@@ -68,8 +67,8 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     document.documentElement.lang = language;
   }, [language]);
 
-  const t = (key: TranslationKey): string => {
-    return translations[language][key] ?? translations.ar[key] ?? key;
+  const t = (key: string): string => {
+    return translate(key);
   };
 
   const isRTL = language === "ar";
