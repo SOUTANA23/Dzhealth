@@ -1,87 +1,141 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Heart, Users, Stethoscope, ChevronRight } from 'lucide-react';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "motion/react";
+import { Heart, Calendar, Droplets, ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button.tsx";
 
-const SLIDES = [
-  {
-    icon: Stethoscope,
-    titleAr: 'ابحث عن أفضل الأطباء',
-    subtitleAr: 'اعثر على أفضل المتخصصين الطبيين بالقرب منك',
-    color: 'from-cyan-500 to-blue-600',
-    bg: 'bg-cyan-500/10',
-  },
+const slides = [
   {
     icon: Heart,
-    titleAr: 'احجز موعدك بسهولة',
-    subtitleAr: 'احجز موعدك الطبي في ثوانٍ معدودة',
-    color: 'from-blue-500 to-indigo-600',
-    bg: 'bg-blue-500/10',
+    color: "from-teal-500 to-emerald-600",
+    iconBg: "bg-teal-100",
+    iconColor: "text-teal-600",
+    titleAr: "اعثر على طبيبك",
+    titleFr: "Trouvez votre médecin",
+    descAr: "ابحث عن أفضل الأطباء في ولايتك واحجز موعدك بكل سهولة ويسر",
+    descFr: "Trouvez les meilleurs médecins dans votre wilaya et prenez rendez-vous facilement",
+    illustration: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=400&q=80",
   },
   {
-    icon: Users,
-    titleAr: 'تبرع وساعد الآخرين',
-    subtitleAr: 'تبرع بالدم أو المعدات الطبية وأنقذ أرواحاً',
-    color: 'from-red-500 to-pink-600',
-    bg: 'bg-red-500/10',
+    icon: Calendar,
+    color: "from-blue-500 to-indigo-600",
+    iconBg: "bg-blue-100",
+    iconColor: "text-blue-600",
+    titleAr: "احجز موعدك",
+    titleFr: "Prenez rendez-vous",
+    descAr: "احجز مواعيدك الطبية وتابعها بكل سهولة، وتلقَّ تذكيرات قبل المواعيد",
+    descFr: "Réservez et suivez vos rendez-vous médicaux facilement, recevez des rappels",
+    illustration: "https://images.unsplash.com/photo-1584820927498-cfe5211fd8bf?w=400&q=80",
+  },
+  {
+    icon: Droplets,
+    color: "from-red-500 to-rose-600",
+    iconBg: "bg-red-100",
+    iconColor: "text-red-600",
+    titleAr: "تبرع وساعد",
+    titleFr: "Donnez et aidez",
+    descAr: "تبرع بالدم والمعدات الطبية، ساعد مجتمعك وأنقذ الأرواح",
+    descFr: "Donnez du sang et des équipements médicaux, aidez votre communauté",
+    illustration: "https://images.unsplash.com/photo-1615461066841-6116e61058f4?w=400&q=80",
   },
 ];
 
 export default function Onboarding() {
-  const [slide, setSlide] = useState(0);
+  const [current, setCurrent] = useState(0);
   const navigate = useNavigate();
 
   const finish = () => {
-    localStorage.setItem('onboarding_completed', 'true');
-    navigate('/login', { replace: true });
+    localStorage.setItem("onboarding_completed", "true");
+    navigate("/home", { replace: true });
   };
 
   const next = () => {
-    if (slide < SLIDES.length - 1) setSlide(s => s + 1);
+    if (current < slides.length - 1) setCurrent((c) => c + 1);
     else finish();
   };
 
-  const { icon: Icon, titleAr, subtitleAr, color, bg } = SLIDES[slide];
+  const prev = () => {
+    if (current > 0) setCurrent((c) => c - 1);
+  };
+
+  const slide = slides[current];
+  const Icon = slide.icon;
 
   return (
-    <div className="min-h-screen bg-[#060d1a] flex flex-col items-center justify-between px-6 py-12">
-      {/* Skip */}
-      <div className="w-full flex justify-end">
-        <button onClick={finish} className="text-gray-500 text-sm">تخطى</button>
-      </div>
-
-      {/* Illustration */}
-      <div className="flex flex-col items-center gap-8 flex-1 justify-center">
-        <div className={`w-32 h-32 ${bg} rounded-full flex items-center justify-center`}>
-          <div className={`w-20 h-20 bg-gradient-to-br ${color} rounded-2xl flex items-center justify-center shadow-2xl`}>
-            <Icon className="w-10 h-10 text-white" />
-          </div>
-        </div>
-
-        <div className="text-center space-y-3">
-          <h2 className="text-2xl font-bold text-white">{titleAr}</h2>
-          <p className="text-gray-400 text-base leading-relaxed">{subtitleAr}</p>
-        </div>
-
-        {/* Dots */}
+    <div className="min-h-screen flex flex-col bg-background overflow-hidden" dir="rtl">
+      {/* Skip button */}
+      <div className="flex justify-between items-center p-4 pt-8">
+        <button onClick={finish} className="text-muted-foreground text-sm cursor-pointer">
+          تخطي
+        </button>
         <div className="flex gap-2">
-          {SLIDES.map((_, i) => (
-            <button
+          {slides.map((_, i) => (
+            <motion.div
               key={i}
-              onClick={() => setSlide(i)}
-              className={`h-2 rounded-full transition-all duration-300 ${i === slide ? 'w-8 bg-cyan-400' : 'w-2 bg-gray-700'}`}
+              className={`h-2 rounded-full transition-all duration-300 ${i === current ? "bg-primary w-6" : "bg-border w-2"}`}
             />
           ))}
         </div>
       </div>
 
-      {/* Button */}
-      <button
-        onClick={next}
-        className={`w-full py-4 rounded-2xl bg-gradient-to-r ${color} text-white font-semibold text-lg flex items-center justify-center gap-2 shadow-lg transition-transform duration-150 active:scale-95`}
-      >
-        {slide === SLIDES.length - 1 ? 'ابدأ الآن' : 'التالي'}
-        <ChevronRight className="w-5 h-5 rtl:rotate-180" />
-      </button>
+      {/* Main content */}
+      <div className="flex-1 flex flex-col items-center px-6 pb-8">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={current}
+            initial={{ opacity: 0, x: 60 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -60 }}
+            transition={{ duration: 0.4, ease: "easeInOut" }}
+            className="flex flex-col items-center gap-6 w-full"
+          >
+            {/* Illustration */}
+            <div className="w-full max-w-sm aspect-square relative mt-4">
+              <div className={`absolute inset-0 bg-gradient-to-br ${slide.color} rounded-[2.5rem] opacity-10`} />
+              <img
+                src={slide.illustration}
+                alt={slide.titleAr}
+                className="w-full h-full object-cover rounded-[2.5rem] shadow-xl"
+              />
+              {/* Icon overlay */}
+              <div className={`absolute bottom-4 right-4 w-14 h-14 ${slide.iconBg} rounded-2xl shadow-lg flex items-center justify-center`}>
+                <Icon className={`w-8 h-8 ${slide.iconColor}`} />
+              </div>
+            </div>
+
+            {/* Text */}
+            <div className="text-center space-y-3 max-w-xs">
+              <h2 className="text-2xl font-bold text-foreground">{slide.titleAr}</h2>
+              <p className="text-sm text-muted-foreground leading-relaxed">{slide.descAr}</p>
+              <p className="text-xs text-muted-foreground/70 leading-relaxed">{slide.descFr}</p>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {/* Navigation buttons */}
+      <div className="px-6 pb-10 flex items-center gap-3">
+        {current > 0 && (
+          <button
+            onClick={prev}
+            className="w-12 h-12 rounded-2xl border border-border flex items-center justify-center cursor-pointer hover:bg-muted transition-colors"
+          >
+            <ChevronLeft className="w-5 h-5 text-muted-foreground" />
+          </button>
+        )}
+        <Button
+          onClick={next}
+          className="flex-1 h-14 rounded-2xl text-base font-semibold"
+        >
+          {current < slides.length - 1 ? (
+            <span className="flex items-center gap-2">
+              التالي <ChevronRight className="w-5 h-5" />
+            </span>
+          ) : (
+            "ابدأ الآن"
+          )}
+        </Button>
+      </div>
     </div>
   );
 }

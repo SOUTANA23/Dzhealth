@@ -1,74 +1,104 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AppProvider } from './context/AppContext';
-import { useAuth } from './hooks/use-auth';
-import { AppLayout } from './AppLayout';
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { DefaultProviders } from "./components/providers/default.tsx";
+import { AppSettingsProvider } from "./hooks/use-app-settings.tsx";
+import { useServiceWorker } from "./hooks/use-service-worker.ts";
+import AuthCallback from "./pages/auth/Callback.tsx";
+import Login from "./pages/auth/Login.tsx";
+import Signup from "./pages/auth/Signup.tsx";
+import Splash from "./pages/Splash.tsx";
+import Onboarding from "./pages/Onboarding.tsx";
+import AppLayout from "./AppLayout.tsx";
+import Home from "./pages/Home.tsx";
+import Doctors from "./pages/Doctors.tsx";
+import DoctorDetail from "./pages/DoctorDetail.tsx";
+import Donors from "./pages/Donors.tsx";
+import RegisterDonor from "./pages/RegisterDonor.tsx";
+import Equipment from "./pages/Equipment.tsx";
+import AddEquipment from "./pages/AddEquipment.tsx";
+import Pharmacies from "./pages/Pharmacies.tsx";
+import Hospitals from "./pages/Hospitals.tsx";
+import SearchPage from "./pages/Search.tsx";
+import AddInfo from "./pages/AddInfo.tsx";
+import Profile from "./pages/Profile.tsx";
+import EditProfile from "./pages/EditProfile.tsx";
+import NotFound from "./pages/NotFound.tsx";
+import Appointments from "./pages/Appointments.tsx";
+import Notifications from "./pages/Notifications.tsx";
+import CivilProtection from "./pages/CivilProtection.tsx";
+import HerbalMedicine from "./pages/HerbalMedicine.tsx";
+import AddHospital from "./pages/add-info/AddHospital.tsx";
+import AddDoctor from "./pages/add-info/AddDoctor.tsx";
+import AddPharmacy from "./pages/add-info/AddPharmacy.tsx";
+import AddCivil from "./pages/add-info/AddCivil.tsx";
+import AddHerbal from "./pages/add-info/AddHerbal.tsx";
+import AddVet from "./pages/add-info/AddVet.tsx";
+import { toast } from "sonner";
 
-import Splash from './pages/Splash';
-import Onboarding from './pages/Onboarding';
-import Login from './pages/auth/Login';
-import Signup from './pages/auth/Signup';
-import Home from './pages/Home';
-import Doctors from './pages/Doctors';
-import DoctorDetail from './pages/DoctorDetail';
-import Profile from './pages/Profile';
-import EditProfile from './pages/EditProfile';
-import Donors from './pages/Donors';
-import RegisterDonor from './pages/RegisterDonor';
-import Equipment from './pages/Equipment';
-import AddEquipment from './pages/AddEquipment';
-import Search from './pages/Search';
-import AddInfo from './pages/AddInfo';
-import Pharmacies from './pages/Pharmacies';
-import Hospitals from './pages/Hospitals';
-import Notifications from './pages/Notifications';
-import Appointments from './pages/Appointments';
+function AppWithSW() {
+  useServiceWorker();
+  return null;
+}
 
-function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#060d1a] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+function ComingSoon() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background" dir="rtl">
+      <div className="text-center space-y-3 px-6">
+        <p className="text-3xl">🚧</p>
+        <h2 className="font-bold text-lg">قريباً</h2>
+        <p className="text-sm text-muted-foreground">هذه الميزة ستكون متاحة قريباً</p>
       </div>
-    );
-  }
-  if (!user) return <Navigate to="/login" replace />;
-  return <>{children}</>;
+    </div>
+  );
 }
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AppProvider>
-        <Routes>
-          {/* Public */}
-          <Route path="/" element={<Splash />} />
-          <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
+    <DefaultProviders>
+      <AppSettingsProvider>
+        <AppWithSW />
+        <BrowserRouter>
+          <Routes>
+            {/* Entry */}
+            <Route path="/" element={<Splash />} />
+            <Route path="/onboarding" element={<Onboarding />} />
 
-          {/* Protected */}
-          <Route element={<AuthGuard><AppLayout /></AuthGuard>}>
-            <Route path="/home" element={<Home />} />
-            <Route path="/doctors" element={<Doctors />} />
-            <Route path="/doctors/:id" element={<DoctorDetail />} />
-            <Route path="/search" element={<Search />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/edit-profile" element={<EditProfile />} />
-            <Route path="/donors" element={<Donors />} />
-            <Route path="/register-donor" element={<RegisterDonor />} />
-            <Route path="/equipment" element={<Equipment />} />
-            <Route path="/add-equipment" element={<AddEquipment />} />
-            <Route path="/add-info" element={<AddInfo />} />
-            <Route path="/pharmacies" element={<Pharmacies />} />
-            <Route path="/hospitals" element={<Hospitals />} />
-            <Route path="/notifications" element={<Notifications />} />
-            <Route path="/appointments" element={<Appointments />} />
-          </Route>
+            {/* Auth */}
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </AppProvider>
-    </BrowserRouter>
+            {/* App Layout (with bottom nav) */}
+            <Route element={<AppLayout />}>
+              <Route path="/home" element={<Home />} />
+              <Route path="/doctors" element={<Doctors />} />
+              <Route path="/doctors/:id" element={<DoctorDetail />} />
+              <Route path="/donors" element={<Donors />} />
+              <Route path="/donors/register" element={<RegisterDonor />} />
+              <Route path="/equipment" element={<Equipment />} />
+              <Route path="/equipment/add" element={<AddEquipment />} />
+              <Route path="/pharmacies" element={<Pharmacies />} />
+              <Route path="/hospitals" element={<Hospitals />} />
+              <Route path="/search" element={<SearchPage />} />
+              <Route path="/add-info" element={<AddInfo />} />
+              <Route path="/add-info/hospital" element={<AddHospital />} />
+              <Route path="/add-info/doctor" element={<AddDoctor />} />
+              <Route path="/add-info/pharmacy" element={<AddPharmacy />} />
+              <Route path="/add-info/civil" element={<AddCivil />} />
+              <Route path="/add-info/herbal" element={<AddHerbal />} />
+              <Route path="/add-info/vet" element={<AddVet />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/profile/edit" element={<EditProfile />} />
+              <Route path="/appointments" element={<Appointments />} />
+              <Route path="/notifications" element={<Notifications />} />
+              <Route path="/civil" element={<CivilProtection />} />
+              <Route path="/herbal" element={<HerbalMedicine />} />
+              <Route path="/more" element={<ComingSoon />} />
+            </Route>
+
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </AppSettingsProvider>
+    </DefaultProviders>
   );
 }

@@ -1,43 +1,54 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
-type Coords = { lat: number; lng: number } | null;
+interface GeolocationState {
+  latitude: number | null;
+  longitude: number | null;
+  error: string | null;
+  loading: boolean;
+}
 
-export function useLocation() {
-  const [coords, setCoords] = useState<Coords>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const locationEnabled = localStorage.getItem('location_enabled') === 'true';
-
-  const requestLocation = () => {
-    if (!navigator.geolocation) {
-      setError('Geolocation not supported');
-      return;
-    }
-    setLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        localStorage.setItem('location_enabled', 'true');
-        localStorage.setItem('last_lat', String(pos.coords.latitude));
-        localStorage.setItem('last_lng', String(pos.coords.longitude));
-        setLoading(false);
-      },
-      (err) => {
-        setError(err.message);
-        setLoading(false);
-      }
-    );
-  };
+export function useLocation(enabled: boolean) {
+  const [state, setState] = useState<GeolocationState>({
+    latitude: null,
+    longitude: null,
+    error: null,
+    loading: false,
+  });
 
   useEffect(() => {
-    const lastLat = localStorage.getItem('last_lat');
-    const lastLng = localStorage.getItem('last_lng');
-    if (lastLat && lastLng) {
-      setCoords({ lat: parseFloat(lastLat), lng: parseFloat(lastLng) });
-    }
-    if (locationEnabled) requestLocation();
-  }, []);
+    if (!enabled || !("geolocation" in navigator)) return;
 
-  return { coords, error, loading, requestLocation };
+    setState((s) => ({ ...s, loading: true }));
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setState({
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          error: null,
+          loading: false,
+        });
+      },
+      (err) => {
+        setState({ latitude: null, longitude: null, error: err.message, loading: false });
+      },
+    );
+  }, [enabled]);
+
+  return state;
+}
+
+/** Haversine distance in km */
+export function haversineDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }

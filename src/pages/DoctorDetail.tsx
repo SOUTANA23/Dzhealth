@@ -1,184 +1,234 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowRight, Heart, Phone, MessageCircle, MapPin, Star, Shield, Share2, ChevronDown, ChevronUp } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import { RatingBar } from '../components/RatingBar';
+import { useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { motion, AnimatePresence } from "motion/react";
+import {
+  ArrowRight,
+  Heart,
+  Phone,
+  MessageCircle,
+  MapPin,
+  Star,
+  Share2,
+  Clock,
+  Users,
+  TrendingUp,
+  Verified,
+  Calendar,
+  X,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
+import { useQuery, useMutation } from "convex/react";
+import { Authenticated, Unauthenticated } from "convex/react";
+import { api } from "@/convex/_generated/api.js";
+import type { Id } from "@/convex/_generated/dataModel.d.ts";
+import { Button } from "@/components/ui/button.tsx";
+import { useAppSettings } from "@/hooks/use-app-settings.tsx";
+import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton.tsx";
+import { cn } from "@/lib/utils.ts";
+import { SignInButton } from "@/components/ui/signin.tsx";
 
-type Doctor = {
-  id: number;
-  name: string;
-  fee: number;
-  rating: number;
-  reviews_count: number;
-  years_experience: number;
-  patients_count: number;
-  satisfaction_rate: number;
-  about: string;
-  tags: string[];
-  image_url: string;
-  is_verified: boolean;
-  phone: string;
-  address: string;
-  reviews_distribution: Record<string, number>;
-  specialties?: { name_arabic: string };
-  wilayas?: { name_arabic: string };
-  baladiyas?: { name_arabic: string };
-};
+const TIME_SLOTS = ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30"];
+
+function getDatesForNextDays(count: number) {
+  const dates: { label: string; value: string; day: string }[] = [];
+  const now = new Date();
+  for (let i = 1; i <= count; i++) {
+    const d = new Date(now);
+    d.setDate(now.getDate() + i);
+    const dayNames = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+    dates.push({
+      label: `${d.getDate()}/${d.getMonth() + 1}`,
+      value: d.toISOString().split("T")[0],
+      day: dayNames[d.getDay()],
+    });
+  }
+  return dates;
+}
 
 export default function DoctorDetail() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
+  const { t } = useAppSettings();
   const navigate = useNavigate();
-  const [doctor, setDoctor] = useState<Doctor | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saved, setSaved] = useState(false);
-  const [showFullAbout, setShowFullAbout] = useState(false);
   const [showBooking, setShowBooking] = useState(false);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedTime, setSelectedTime] = useState("");
+  const [isFavorite, setIsFavorite] = useState(false);
 
-  useEffect(() => {
-    const fetch = async () => {
-      const { data } = await supabase
-        .from('doctors')
-        .select('*, specialties(name_arabic), wilayas(name_arabic), baladiyas(name_arabic)')
-        .eq('id', Number(id))
-        .maybeSingle();
-      setDoctor(data as Doctor);
-      setLoading(false);
-    };
-    fetch();
-  }, [id]);
+  const doctor = useQuery(
+    api.doctors.getById,
+    id ? { id: id as Id<"doctors"> } : "skip",
+  );
 
-  const handleShare = async () => {
+  const reviews = useQuery(
+    api.doctors.getReviews,
+    id ? { doctor_id: id as Id<"doctors"> } : "skip",
+  );
+
+  const bookAppointment = useMutation(api.appointments.book);
+
+  const dates = getDatesForNextDays(7);
+
+  const share = async () => {
     if (navigator.share) {
-      await navigator.share({ title: doctor?.name, text: doctor?.about, url: window.location.href });
+      await navigator.share({ title: doctor?.name ?? "", text: doctor?.specialty ?? "", url: window.location.href });
     } else {
-      navigator.clipboard.writeText(window.location.href);
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success("تم نسخ الرابط");
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#060d1a] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const handleBook = async () => {
+    if (!selectedDate || !selectedTime) {
+      toast.error("الرجاء اختيار التاريخ والوقت");
+      return;
+    }
+    try {
+      await bookAppointment({
+        doctor_id: id as Id<"doctors">,
+        date: selectedDate,
+        time: selectedTime,
+      });
+      toast.success("تم حجز الموعد بنجاح!");
+      setShowBooking(false);
+      setSelectedDate("");
+      setSelectedTime("");
+    } catch {
+      toast.error("حدث خطأ أثناء الحجز");
+    }
+  };
 
   if (!doctor) {
     return (
-      <div className="min-h-screen bg-[#060d1a] flex flex-col items-center justify-center gap-3">
-        <p className="text-gray-400">الطبيب غير موجود</p>
-        <button onClick={() => navigate(-1)} className="text-cyan-400">رجوع</button>
+      <div className="min-h-screen bg-background" dir="rtl">
+        <Skeleton className="h-72 w-full" />
+        <div className="px-5 py-5 space-y-4">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-20 w-full rounded-2xl" />
+          <Skeleton className="h-32 w-full rounded-2xl" />
+        </div>
       </div>
     );
   }
 
-  const dist = doctor.reviews_distribution || {};
-  const totalRevs = doctor.reviews_count || 1;
+  const stats = [
+    { icon: Clock, label: `${doctor.experience_years} ${t("years")}`, sublabel: t("experience") },
+    { icon: Users, label: `${doctor.patients_count.toLocaleString()}+`, sublabel: t("patients") },
+    { icon: TrendingUp, label: `${doctor.satisfaction}%`, sublabel: t("satisfaction") },
+  ];
 
   return (
-    <div className="min-h-screen bg-[#060d1a] pb-28">
+    <div className="min-h-screen bg-background" dir="rtl">
       {/* Hero */}
       <div className="relative h-72">
         <img
-          src={doctor.image_url || 'https://images.pexels.com/photos/5452201/pexels-photo-5452201.jpeg?auto=compress&cs=tinysrgb&w=600'}
+          src={doctor.image ?? "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&q=80"}
           alt={doctor.name}
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#060d1a]/50 via-transparent to-[#060d1a]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
-        <div className="absolute top-12 inset-x-0 flex items-center justify-between px-4">
-          <button onClick={() => navigate(-1)} className="w-10 h-10 bg-black/40 backdrop-blur-sm rounded-xl flex items-center justify-center">
-            <ArrowRight className="w-5 h-5 text-white rtl:rotate-180" />
+        <div className="absolute top-0 left-0 right-0 flex items-center justify-between p-5 pt-12">
+          <button
+            onClick={() => navigate(-1)}
+            className="w-10 h-10 bg-white/20 backdrop-blur rounded-full flex items-center justify-center cursor-pointer"
+          >
+            <ArrowRight className="w-5 h-5 text-white" />
           </button>
           <div className="flex gap-2">
-            <button onClick={handleShare} className="w-10 h-10 bg-black/40 backdrop-blur-sm rounded-xl flex items-center justify-center">
-              <Share2 className="w-5 h-5 text-white" />
+            <button onClick={share} className="w-10 h-10 bg-white/20 backdrop-blur rounded-full flex items-center justify-center cursor-pointer">
+              <Share2 className="w-4 h-4 text-white" />
             </button>
-            <button onClick={() => setSaved(v => !v)} className="w-10 h-10 bg-black/40 backdrop-blur-sm rounded-xl flex items-center justify-center">
-              <Heart className={`w-5 h-5 ${saved ? 'text-red-400 fill-red-400' : 'text-white'}`} />
+            <button
+              onClick={() => setIsFavorite(!isFavorite)}
+              className="w-10 h-10 bg-white/20 backdrop-blur rounded-full flex items-center justify-center cursor-pointer"
+            >
+              <Heart className={cn("w-4 h-4", isFavorite ? "text-red-400 fill-red-400" : "text-white")} />
             </button>
+          </div>
+        </div>
+
+        <div className="absolute bottom-4 right-5 left-5">
+          <div className="flex items-center gap-1.5 mb-1">
+            <h1 className="text-white font-bold text-xl">{doctor.name}</h1>
+            {doctor.is_verified && <Verified className="w-5 h-5 text-primary" />}
+          </div>
+          <p className="text-white/80 text-sm">{doctor.specialty}</p>
+          <div className="flex items-center gap-1 mt-1">
+            <MapPin className="w-3.5 h-3.5 text-white/70" />
+            <span className="text-white/70 text-xs">{doctor.address}</span>
           </div>
         </div>
       </div>
 
-      <div className="px-4 -mt-6 space-y-4">
-        {/* Name & Specialty */}
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-white font-bold text-xl">{doctor.name}</h1>
-            {doctor.is_verified && <Shield className="w-5 h-5 text-cyan-400 fill-cyan-400/20" />}
+      {/* Content */}
+      <div className="px-5 py-5 space-y-5">
+        {/* Rating + fee */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-950/30 rounded-xl px-3 py-1.5">
+            <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+            <span className="font-bold text-sm">{doctor.rating}</span>
+            <span className="text-xs text-muted-foreground">({doctor.review_count} {t("reviews")})</span>
           </div>
-          <p className="text-cyan-400 text-sm">{(doctor as any).specialties?.name_arabic}</p>
-          <div className="flex items-center gap-1 mt-1">
-            <MapPin className="w-3.5 h-3.5 text-gray-500" />
-            <span className="text-gray-400 text-sm">{(doctor as any).baladiyas?.name_arabic} - {(doctor as any).wilayas?.name_arabic}</span>
-          </div>
-          <div className="flex items-center gap-2 mt-2">
-            <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-            <span className="text-yellow-400 font-bold">{doctor.rating}</span>
-            <span className="text-gray-500 text-sm">({doctor.reviews_count} تقييم)</span>
+          <div className="bg-primary/10 rounded-xl px-3 py-1.5">
+            <span className="text-primary font-bold text-sm">{doctor.fee.toLocaleString()} د.ج</span>
           </div>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: 'سنوات الخبرة', value: doctor.years_experience },
-            { label: 'مرضى', value: `${(doctor.patients_count / 1000).toFixed(1)}K+` },
-            { label: 'نسبة الرضا', value: `${doctor.satisfaction_rate}%` },
-          ].map(stat => (
-            <div key={stat.label} className="bg-[#0d1b2a] border border-white/10 rounded-2xl p-3 text-center">
-              <p className="text-cyan-400 font-bold text-lg">{stat.value}</p>
-              <p className="text-gray-500 text-xs mt-0.5">{stat.label}</p>
-            </div>
-          ))}
+          {stats.map((stat) => {
+            const Icon = stat.icon;
+            return (
+              <div key={stat.sublabel} className="bg-card rounded-2xl p-3 text-center border border-border">
+                <Icon className="w-5 h-5 text-primary mx-auto mb-1" />
+                <p className="font-bold text-sm">{stat.label}</p>
+                <p className="text-[10px] text-muted-foreground">{stat.sublabel}</p>
+              </div>
+            );
+          })}
         </div>
 
-        {/* Actions */}
-        <div className="grid grid-cols-3 gap-3">
-          {doctor.phone && (
-            <a href={`tel:${doctor.phone}`} className="flex flex-col items-center gap-1.5 bg-[#0d1b2a] border border-green-500/30 rounded-2xl p-3">
-              <div className="w-9 h-9 bg-green-500/20 rounded-xl flex items-center justify-center">
-                <Phone className="w-5 h-5 text-green-400" />
-              </div>
-              <span className="text-gray-400 text-xs">اتصال</span>
-            </a>
-          )}
-          <a href={`sms:${doctor.phone}`} className="flex flex-col items-center gap-1.5 bg-[#0d1b2a] border border-blue-500/30 rounded-2xl p-3">
-            <div className="w-9 h-9 bg-blue-500/20 rounded-xl flex items-center justify-center">
-              <MessageCircle className="w-5 h-5 text-blue-400" />
-            </div>
-            <span className="text-gray-400 text-xs">رسالة</span>
+        {/* Action buttons */}
+        <div className="grid grid-cols-3 gap-2">
+          <a href={`tel:${doctor.phone}`}>
+            <button className="w-full h-12 bg-primary rounded-2xl flex flex-col items-center justify-center gap-0.5 cursor-pointer hover:bg-primary/90 transition-colors">
+              <Phone className="w-4 h-4 text-primary-foreground" />
+              <span className="text-primary-foreground text-[10px]">{t("call")}</span>
+            </button>
           </a>
-          <button className="flex flex-col items-center gap-1.5 bg-[#0d1b2a] border border-orange-500/30 rounded-2xl p-3">
-            <div className="w-9 h-9 bg-orange-500/20 rounded-xl flex items-center justify-center">
-              <MapPin className="w-5 h-5 text-orange-400" />
-            </div>
-            <span className="text-gray-400 text-xs">الموقع</span>
+          <button className="w-full h-12 bg-blue-50 dark:bg-blue-950/30 rounded-2xl flex flex-col items-center justify-center gap-0.5 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-950/50 transition-colors">
+            <MessageCircle className="w-4 h-4 text-blue-600" />
+            <span className="text-blue-600 text-[10px]">رسالة</span>
           </button>
+          <a
+            href={doctor.lat && doctor.lng ? `https://www.openstreetmap.org/?mlat=${doctor.lat}&mlon=${doctor.lng}&zoom=16` : "#"}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <button className="w-full h-12 bg-green-50 dark:bg-green-950/30 rounded-2xl flex flex-col items-center justify-center gap-0.5 cursor-pointer hover:bg-green-100 dark:hover:bg-green-950/50 transition-colors">
+              <MapPin className="w-4 h-4 text-green-600" />
+              <span className="text-green-600 text-[10px]">{t("clinicLocation")}</span>
+            </button>
+          </a>
         </div>
 
         {/* About */}
         {doctor.about && (
-          <div className="bg-[#0d1b2a] border border-white/10 rounded-2xl p-4">
-            <h3 className="text-white font-semibold mb-2">نبذة عن الطبيب</h3>
-            <p className={`text-gray-400 text-sm leading-relaxed ${!showFullAbout ? 'line-clamp-3' : ''}`}>
-              {doctor.about}
-            </p>
-            <button onClick={() => setShowFullAbout(v => !v)} className="text-cyan-400 text-sm mt-2 flex items-center gap-1">
-              {showFullAbout ? 'عرض أقل' : 'عرض المزيد'}
-              {showFullAbout ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
+          <div className="bg-card rounded-2xl p-4 border border-border">
+            <h3 className="font-bold text-sm mb-2">{t("about")}</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">{doctor.about}</p>
           </div>
         )}
 
         {/* Tags */}
-        {doctor.tags && doctor.tags.length > 0 && (
+        {doctor.tags.length > 0 && (
           <div>
-            <h3 className="text-white font-semibold mb-2">التخصصات</h3>
+            <h3 className="font-bold text-sm mb-2">{t("tags")}</h3>
             <div className="flex flex-wrap gap-2">
-              {doctor.tags.map(tag => (
-                <span key={tag} className="px-3 py-1.5 bg-cyan-500/10 border border-cyan-500/30 rounded-full text-cyan-400 text-xs">
+              {doctor.tags.map((tag) => (
+                <span key={tag} className="bg-primary/10 text-primary text-xs px-3 py-1.5 rounded-full font-medium">
                   {tag}
                 </span>
               ))}
@@ -186,157 +236,124 @@ export default function DoctorDetail() {
           </div>
         )}
 
-        {/* Reviews Distribution */}
-        <div className="bg-[#0d1b2a] border border-white/10 rounded-2xl p-4">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="text-center">
-              <p className="text-4xl font-bold text-white">{doctor.rating}</p>
-              <div className="flex justify-center mt-1">
-                {[1,2,3,4,5].map(s => (
-                  <Star key={s} className={`w-3 h-3 ${s <= Math.round(doctor.rating) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-600'}`} />
-                ))}
-              </div>
-              <p className="text-gray-500 text-xs mt-1">({doctor.reviews_count})</p>
-            </div>
-            <div className="flex-1 space-y-1">
-              {[5,4,3,2,1].map(s => (
-                <RatingBar key={s} star={s} percentage={Math.round(((dist[String(s)] || 0) / totalRevs) * 100)} />
+        {/* Reviews */}
+        {reviews && reviews.length > 0 && (
+          <div>
+            <h3 className="font-bold text-sm mb-3">آراء المرضى ({reviews.length})</h3>
+            <div className="space-y-3">
+              {reviews.slice(0, 3).map((review) => (
+                <div key={review._id} className="bg-card rounded-2xl p-3 border border-border">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className="flex">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star
+                          key={i}
+                          className={cn("w-3.5 h-3.5", i < review.rating ? "text-amber-400 fill-amber-400" : "text-muted-foreground")}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  {review.text && (
+                    <p className="text-xs text-muted-foreground leading-relaxed">{review.text}</p>
+                  )}
+                </div>
               ))}
             </div>
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* Book Appointment button */}
-      <div className="fixed bottom-20 left-0 right-0 px-4 max-w-md mx-auto">
-        <button
-          onClick={() => setShowBooking(true)}
-          className="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-2xl text-white font-bold text-lg shadow-lg shadow-cyan-500/30 transition-transform duration-150 active:scale-95"
-        >
-          احجز موعد
-        </button>
+        {/* Book button */}
+        <Authenticated>
+          <Button
+            className="w-full h-14 rounded-2xl text-base font-bold"
+            onClick={() => setShowBooking(true)}
+          >
+            <Calendar className="w-5 h-5 ml-2" />
+            {t("book")}
+          </Button>
+        </Authenticated>
+        <Unauthenticated>
+          <div className="space-y-2">
+            <p className="text-center text-sm text-muted-foreground">سجل دخولك لحجز موعد</p>
+            <SignInButton className="w-full h-12 rounded-2xl" />
+          </div>
+        </Unauthenticated>
       </div>
 
       {/* Booking Modal */}
-      {showBooking && (
-        <BookingModal doctor={doctor} onClose={() => setShowBooking(false)} />
-      )}
-    </div>
-  );
-}
-
-function BookingModal({ doctor, onClose }: { doctor: Doctor; onClose: () => void }) {
-  const today = new Date();
-  const dates = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    return d;
-  });
-  const [selectedDate, setSelectedDate] = useState(0);
-  const [selectedTime, setSelectedTime] = useState('10:30');
-  const [visitType, setVisitType] = useState<'in_person' | 'online'>('in_person');
-
-  const TIMES = ['09:00', '10:30', '12:00', '14:00', '16:00', '18:00'];
-  const DAYS_AR = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'];
-
-  const handleConfirm = async () => {
-    // Would insert appointment to Supabase
-    alert('تم حجز الموعد بنجاح!');
-    onClose();
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end">
-      <div className="w-full max-w-md mx-auto bg-[#0a1628] rounded-t-3xl p-5 border-t border-white/10 max-h-[85vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-white font-bold text-lg">حجز موعد</h2>
-          <button onClick={onClose} className="text-gray-500">✕</button>
-        </div>
-
-        <div className="flex items-center gap-3 bg-white/5 rounded-xl p-3 mb-5">
-          <img src={doctor.image_url} alt="" className="w-12 h-12 rounded-xl object-cover" />
-          <div>
-            <p className="text-white font-semibold text-sm">{doctor.name}</p>
-            <p className="text-cyan-400 text-xs">{(doctor as any).specialties?.name_arabic}</p>
-            <p className="text-gray-500 text-xs">{(doctor as any).baladiyas?.name_arabic}</p>
-          </div>
-        </div>
-
-        <h3 className="text-white font-semibold text-sm mb-3">اختر التاريخ</h3>
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-5">
-          {dates.map((d, i) => (
-            <button
-              key={i}
-              onClick={() => setSelectedDate(i)}
-              className={`flex-shrink-0 flex flex-col items-center px-4 py-3 rounded-xl transition-all ${
-                i === selectedDate
-                  ? 'bg-cyan-500 text-white'
-                  : 'bg-white/5 text-gray-400'
-              }`}
+      <AnimatePresence>
+        {showBooking && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-end" onClick={() => setShowBooking(false)}>
+            <motion.div
+              initial={{ y: "100%", opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "100%", opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="w-full bg-background rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+              dir="rtl"
             >
-              <span className="text-xs">{d.getDate()}</span>
-              <span className="text-[10px] mt-0.5">{DAYS_AR[d.getDay()]}</span>
-            </button>
-          ))}
-        </div>
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="font-bold text-lg">حجز موعد</h3>
+                <button onClick={() => setShowBooking(false)} className="cursor-pointer w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
 
-        <h3 className="text-white font-semibold text-sm mb-3">اختر الوقت</h3>
-        <div className="grid grid-cols-3 gap-2 mb-5">
-          {TIMES.map(time => (
-            <button
-              key={time}
-              onClick={() => setSelectedTime(time)}
-              className={`py-2.5 rounded-xl text-sm font-medium transition-all ${
-                time === selectedTime
-                  ? 'bg-cyan-500 text-white'
-                  : 'bg-white/5 text-gray-400'
-              }`}
-            >
-              {time}
-            </button>
-          ))}
-        </div>
+              {/* Date picker */}
+              <div className="mb-5">
+                <p className="font-semibold text-sm mb-3">اختر التاريخ</p>
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                  {dates.map((d) => (
+                    <button
+                      key={d.value}
+                      onClick={() => setSelectedDate(d.value)}
+                      className={cn(
+                        "shrink-0 flex flex-col items-center gap-0.5 px-4 py-3 rounded-2xl text-sm cursor-pointer transition-colors border",
+                        selectedDate === d.value
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-card border-border",
+                      )}
+                    >
+                      <span className="text-[10px] opacity-70">{d.day}</span>
+                      <span className="font-bold">{d.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-        <h3 className="text-white font-semibold text-sm mb-3">نوع الزيارة</h3>
-        <div className="grid grid-cols-2 gap-2 mb-5">
-          {[{ key: 'in_person', label: 'حضوري' }, { key: 'online', label: 'أونلاين' }].map(vt => (
-            <button
-              key={vt.key}
-              onClick={() => setVisitType(vt.key as 'in_person' | 'online')}
-              className={`py-3 rounded-xl text-sm font-medium border transition-all ${
-                visitType === vt.key
-                  ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400'
-                  : 'bg-white/5 border-white/10 text-gray-400'
-              }`}
-            >
-              {vt.label}
-            </button>
-          ))}
-        </div>
+              {/* Time slots */}
+              <div className="mb-6">
+                <p className="font-semibold text-sm mb-3">اختر الوقت</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {TIME_SLOTS.map((time) => (
+                    <button
+                      key={time}
+                      onClick={() => setSelectedTime(time)}
+                      className={cn(
+                        "py-2.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors border",
+                        selectedTime === time
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-card border-border hover:border-primary/30",
+                      )}
+                    >
+                      {time}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-        <div className="bg-white/5 rounded-xl p-4 mb-5 space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-400">رسوم الطبيب</span>
-            <span className="text-white">{doctor.fee} دج</span>
+              <Button
+                onClick={handleBook}
+                className="w-full h-12 rounded-2xl font-bold"
+                disabled={!selectedDate || !selectedTime}
+              >
+                تأكيد الحجز
+              </Button>
+            </motion.div>
           </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-400">رسوم المنصة</span>
-            <span className="text-white">100 دج</span>
-          </div>
-          <div className="h-px bg-white/10" />
-          <div className="flex justify-between text-sm font-bold">
-            <span className="text-white">المجموع</span>
-            <span className="text-cyan-400">{doctor.fee + 100} دج</span>
-          </div>
-        </div>
-
-        <button
-          onClick={handleConfirm}
-          className="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-2xl text-white font-bold text-base"
-        >
-          تأكيد الحجز
-        </button>
-      </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -1,10 +1,10 @@
-import { Outlet } from 'react-router-dom';
-import { BottomNav } from './components/BottomNav';
+import { Outlet } from "react-router-dom";
+import BottomNav from "@/components/BottomNav.tsx";
 
-export function AppLayout() {
+export default function AppLayout() {
   return (
-    <div className="min-h-screen bg-[#060d1a] text-white">
-      <main className="pb-20 max-w-md mx-auto relative">
+    <div className="min-h-screen flex flex-col bg-background">
+      <main className="flex-1 pb-16 overflow-y-auto">
         <Outlet />
       </main>
       <BottomNav />

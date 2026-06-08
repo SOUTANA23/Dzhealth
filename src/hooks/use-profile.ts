@@ -7,6 +7,7 @@ export type Profile = {
   full_name: string;
   phone: string;
   wilaya_id: number;
+  baladiya_id: number | null;
   blood_type: string;
   avatar_url: string;
 };
@@ -24,7 +25,7 @@ export function useProfile() {
       .select('*')
       .eq('id', user.id)
       .maybeSingle();
-    setProfile(data);
+    setProfile(data as Profile | null);
     setLoading(false);
   }, [user]);
 
@@ -33,13 +34,13 @@ export function useProfile() {
   }, [fetchProfile]);
 
   const updateProfile = async (updates: Partial<Profile>) => {
-    if (!user) return { error: new Error('Not authenticated') };
+    if (!user) return { data: null, error: new Error('Not authenticated') };
     const { data, error } = await supabase
       .from('profiles')
-      .upsert({ id: user.id, ...updates, updated_at: new Date().toISOString() })
+      .upsert({ id: user.id, ...updates, updated_at: new Date().toISOString() }, { onConflict: 'id' })
       .select()
       .single();
-    if (data) setProfile(data);
+    if (data) setProfile(data as Profile);
     return { data, error };
   };
 

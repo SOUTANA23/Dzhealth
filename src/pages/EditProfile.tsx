@@ -1,165 +1,210 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Camera, ChevronRight } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import { useApp } from '../context/AppContext';
-import { BLOOD_TYPES } from '../lib/utils';
-
-type Wilaya = { id: number; name_arabic: string };
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { ArrowRight, Camera } from "lucide-react";
+import { Button } from "@/components/ui/button.tsx";
+import { Input } from "@/components/ui/input.tsx";
+import { Label } from "@/components/ui/label.tsx";
+import { useAppSettings } from "@/hooks/use-app-settings.tsx";
+import { WILAYAS, BLOOD_TYPES } from "@/lib/data.ts";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils.ts";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api.js";
+import { Authenticated, Unauthenticated } from "convex/react";
+import { SignInButton } from "@/components/ui/signin.tsx";
+import { Skeleton } from "@/components/ui/skeleton.tsx";
+import { ConvexError } from "convex/values";
 
 export default function EditProfile() {
+  const { t } = useAppSettings();
   const navigate = useNavigate();
-  const { profile, updateProfile } = useApp();
-  const [name, setName] = useState(profile?.full_name || '');
-  const [phone, setPhone] = useState(profile?.phone || '');
-  const [selectedWilaya, setSelectedWilaya] = useState<number | null>(profile?.wilaya_id || null);
-  const [bloodType, setBloodType] = useState(profile?.blood_type || '');
-  const [wilayas, setWilayas] = useState<Wilaya[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState('');
 
-  useEffect(() => {
-    supabase.from('wilayas').select('id, name_arabic').order('name_arabic').then(({ data }) => {
-      if (data) setWilayas(data);
-    });
-  }, []);
+  return (
+    <div className="min-h-screen bg-background overflow-y-auto" dir="rtl">
+      <div className="flex items-center justify-between px-5 pt-12 pb-4 border-b border-border">
+        <button onClick={() => navigate(-1)} className="cursor-pointer">
+          <ArrowRight className="w-5 h-5 text-foreground" />
+        </button>
+        <h1 className="font-bold text-base">{t("editProfile")}</h1>
+        <div className="w-5" />
+      </div>
+      <Unauthenticated>
+        <div className="px-5 py-12 flex flex-col items-center gap-4 text-center">
+          <p className="text-muted-foreground text-sm">يجب تسجيل الدخول لتعديل ملفك الشخصي</p>
+          <SignInButton />
+        </div>
+      </Unauthenticated>
+      <Authenticated>
+        <EditProfileForm />
+      </Authenticated>
+    </div>
+  );
+}
 
+function EditProfileForm() {
+  const { t } = useAppSettings();
+  const navigate = useNavigate();
+  const user = useQuery(api.users.getCurrentUser, {});
+  const updateProfile = useMutation(api.users.updateProfile);
+
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [selectedWilaya, setSelectedWilaya] = useState("23");
+  const [selectedBloodType, setSelectedBloodType] = useState("O+");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [initialized, setInitialized] = useState(false);
+
+  // Pre-fill form from real user data once loaded
   useEffect(() => {
-    if (profile) {
-      setName(profile.full_name || '');
-      setPhone(profile.phone || '');
-      setSelectedWilaya(profile.wilaya_id || null);
-      setBloodType(profile.blood_type || '');
+    if (user && !initialized) {
+      setName(user.name ?? "");
+      setPhone(user.phone ?? "");
+      setSelectedWilaya(user.wilaya_code ?? "23");
+      setSelectedBloodType(user.blood_type ?? "O+");
+      setInitialized(true);
     }
-  }, [profile]);
+  }, [user, initialized]);
 
   const handleSave = async () => {
-    setLoading(true);
-    const { error } = await updateProfile({
-      full_name: name,
-      phone,
-      wilaya_id: selectedWilaya || undefined,
-      blood_type: bloodType || undefined,
-    });
-    setLoading(false);
-    if (!error) {
-      setToast('تم حفظ التغييرات بنجاح');
-      setTimeout(() => { setToast(''); navigate(-1); }, 1500);
+    if (!name.trim()) {
+      toast.error("الرجاء إدخال الاسم الكامل");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await updateProfile({
+        name: name.trim(),
+        phone: phone.trim() || undefined,
+        wilaya_code: selectedWilaya,
+        blood_type: selectedBloodType,
+      });
+      toast.success("تم حفظ الملف الشخصي بنجاح ✓");
+      navigate(-1);
+    } catch (err) {
+      if (err instanceof ConvexError) {
+        const e = err.data as { message: string };
+        toast.error(e.message);
+      } else {
+        toast.error("حدث خطأ، يرجى المحاولة مجدداً");
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
+  if (user === undefined) {
+    return (
+      <div className="px-5 py-5 space-y-4">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-12 w-full rounded-xl" />
+        ))}
+      </div>
+    );
+  }
+
+  const initials = name.trim().charAt(0) || "م";
+
   return (
-    <div className="min-h-screen bg-[#060d1a] pb-8">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-12 pb-4 bg-[#0a1628]">
-        <button onClick={() => navigate(-1)} className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center">
-          <ArrowRight className="w-5 h-5 text-white rtl:rotate-180" />
-        </button>
-        <h1 className="text-white font-bold text-lg">تعديل الملف الشخصي</h1>
-        <div className="w-10" />
+    <div className="px-5 py-5 space-y-5 pb-10">
+      {/* Avatar */}
+      <div className="flex flex-col items-center gap-3">
+        <div className="relative">
+          <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden">
+            {user?.avatar_url ? (
+              <img src={user.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-3xl font-bold text-primary">{initials}</span>
+            )}
+          </div>
+          <button className="absolute bottom-0 right-0 w-7 h-7 bg-primary rounded-full flex items-center justify-center cursor-pointer shadow-md">
+            <Camera className="w-3.5 h-3.5 text-white" />
+          </button>
+        </div>
+        <p className="text-xs text-muted-foreground">انقر لتغيير الصورة</p>
       </div>
 
-      {toast && (
-        <div className="mx-4 mt-3 bg-green-500/20 border border-green-500/30 rounded-xl px-4 py-3 text-green-400 text-sm text-center">
-          {toast}
-        </div>
-      )}
+      {/* Name */}
+      <div className="space-y-1.5">
+        <Label className="text-sm">{t("fullName")}</Label>
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="أدخل اسمك الكامل"
+          className="h-12 rounded-xl"
+        />
+      </div>
 
-      <div className="px-4 mt-6 space-y-5">
-        {/* Avatar */}
-        <div className="flex justify-center">
-          <div className="relative">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white text-2xl font-bold ring-4 ring-cyan-500/30">
-              {name ? name[0]?.toUpperCase() : 'S'}
-            </div>
-            <button className="absolute bottom-0 right-0 w-7 h-7 bg-cyan-500 rounded-full flex items-center justify-center">
-              <Camera className="w-3.5 h-3.5 text-white" />
-            </button>
-          </div>
-        </div>
+      {/* Phone */}
+      <div className="space-y-1.5">
+        <Label className="text-sm">{t("phone")}</Label>
+        <Input
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="0555 12 34 56"
+          type="tel"
+          className="h-12 rounded-xl"
+        />
+      </div>
 
-        {/* Fields */}
-        <div className="space-y-4">
-          <div>
-            <label className="text-gray-400 text-xs mb-1.5 block">الاسم الكامل</label>
-            <input
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              className="w-full bg-[#0d1b2a] border border-white/10 rounded-xl py-3.5 px-4 text-white focus:outline-none focus:border-cyan-500/40"
-            />
-          </div>
-
-          <div>
-            <label className="text-gray-400 text-xs mb-1.5 block">البريد الإلكتروني</label>
-            <input
-              type="email"
-              disabled
-              placeholder="example@mail.com"
-              className="w-full bg-[#0d1b2a]/50 border border-white/5 rounded-xl py-3.5 px-4 text-gray-500 cursor-not-allowed"
-            />
-          </div>
-
-          <div>
-            <label className="text-gray-400 text-xs mb-1.5 block">رقم الهاتف</label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
-              placeholder="0778185043"
-              className="w-full bg-[#0d1b2a] border border-white/10 rounded-xl py-3.5 px-4 text-white focus:outline-none focus:border-cyan-500/40"
-            />
-          </div>
-
-          {/* Wilaya */}
-          <div>
-            <label className="text-gray-400 text-xs mb-1.5 block">اختر الولاية</label>
-            <div className="grid grid-cols-3 gap-2 max-h-44 overflow-y-auto">
-              {wilayas.slice(0, 12).map(w => (
-                <button
-                  key={w.id}
-                  onClick={() => setSelectedWilaya(w.id)}
-                  className={`py-2 px-3 rounded-xl text-xs transition-all ${
-                    selectedWilaya === w.id
-                      ? 'bg-cyan-500 text-white'
-                      : 'bg-[#0d1b2a] border border-white/10 text-gray-400'
-                  }`}
-                >
-                  {w.name_arabic}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Blood type */}
-          <div>
-            <label className="text-gray-400 text-xs mb-1.5 block">فصيلة الدم</label>
-            <div className="grid grid-cols-4 gap-2">
-              {BLOOD_TYPES.map(bt => (
-                <button
-                  key={bt}
-                  onClick={() => setBloodType(bt)}
-                  className={`py-2.5 rounded-xl text-sm font-bold transition-all ${
-                    bloodType === bt
-                      ? 'bg-red-600 text-white'
-                      : 'bg-[#0d1b2a] border border-white/10 text-gray-400'
-                  }`}
-                >
-                  {bt}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <button
-          onClick={handleSave}
-          disabled={loading}
-          className="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-2xl text-white font-bold text-base disabled:opacity-60"
+      {/* Wilaya */}
+      <div className="space-y-2">
+        <Label className="text-sm">{t("wilaya")}</Label>
+        <select
+          value={selectedWilaya}
+          onChange={(e) => setSelectedWilaya(e.target.value)}
+          className="w-full h-12 rounded-xl border border-border bg-card text-sm px-3 outline-none text-foreground cursor-pointer"
         >
-          {loading ? 'جاري الحفظ...' : 'حفظ التغييرات'}
-        </button>
+          {WILAYAS.map((w) => (
+            <option key={w.code} value={w.code}>{w.ar}</option>
+          ))}
+        </select>
+        {/* Quick-select top cities */}
+        <div className="grid grid-cols-4 gap-2">
+          {WILAYAS.filter((w) => ["16", "23", "25", "31", "19", "05", "06", "09"].includes(w.code)).map((w) => (
+            <button
+              key={w.code}
+              onClick={() => setSelectedWilaya(w.code)}
+              className={cn(
+                "px-2 py-2 rounded-xl text-[11px] font-medium transition-colors cursor-pointer text-center",
+                selectedWilaya === w.code
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-card border border-border text-foreground",
+              )}
+            >
+              {w.ar}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {/* Blood type */}
+      <div className="space-y-2">
+        <Label className="text-sm">{t("bloodType")}</Label>
+        <div className="grid grid-cols-4 gap-2">
+          {BLOOD_TYPES.map((bt) => (
+            <button
+              key={bt}
+              onClick={() => setSelectedBloodType(bt)}
+              className={cn(
+                "h-11 rounded-xl font-bold text-sm transition-colors cursor-pointer",
+                selectedBloodType === bt
+                  ? "bg-red-500 text-white shadow-md"
+                  : "bg-card border border-border text-foreground",
+              )}
+            >
+              {bt}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <Button
+        onClick={handleSave}
+        disabled={isSubmitting}
+        className="w-full h-12 rounded-xl text-base font-bold mt-2"
+      >
+        {isSubmitting ? "جاري الحفظ..." : t("save")}
+      </Button>
     </div>
   );
 }
