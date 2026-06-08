@@ -52,7 +52,6 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     localStorage.setItem("notifications_enabled", val ? "true" : "false");
   };
 
-  // Apply theme & direction to document
   useEffect(() => {
     const root = document.documentElement;
     if (theme === "dark") {
@@ -68,11 +67,31 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   }, [language]);
 
   const t = (key: string): string => {
-    // استيراد الترجمة مباشرة من i18n
-    const translations = {
-      ar: { home: "الرئيسية", search: "بحث", add: "إضافة", profile: "ملفي" },
-      fr: { home: "Accueil", search: "Recherche", add: "Ajouter", profile: "Profil" },
-      en: { home: "Home", search: "Search", add: "Add", profile: "Profile" },
+    const translations: Record<Language, Record<string, string>> = {
+      ar: {
+        home: "الرئيسية",
+        search: "بحث",
+        add: "إضافة",
+        profile: "ملفي",
+        appointments: "المواعيد",
+        settings: "الإعدادات"
+      },
+      fr: {
+        home: "Accueil",
+        search: "Recherche",
+        add: "Ajouter",
+        profile: "Profil",
+        appointments: "Rendez-vous",
+        settings: "Paramètres"
+      },
+      en: {
+        home: "Home",
+        search: "Search",
+        add: "Add",
+        profile: "Profile",
+        appointments: "Appointments",
+        settings: "Settings"
+      }
     };
     return translations[language][key] || key;
   };
