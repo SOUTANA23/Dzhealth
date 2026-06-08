@@ -1,1 +1,0 @@
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS baladiya_id INTEGER REFERENCES baladiyas(id);
