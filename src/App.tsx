@@ -1,6 +1,6 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { DefaultProviders } from "./components/providers/default.tsx";
-import { AppSettingsProvider } from "./hooks/use-app-settings.tsx";
+import { AppSettingsProvider } from "./hooks/use-app-settings.ts";
 import { useServiceWorker } from "./hooks/use-service-worker.ts";
 import AuthCallback from "./pages/auth/Callback.tsx";
 import Login from "./pages/auth/Login.tsx";
