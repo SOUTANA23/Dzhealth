@@ -19,18 +19,19 @@ interface AppSettingsContextType {
 const AppSettingsContext = createContext<AppSettingsContextType | null>(null);
 
 export function AppSettingsProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<Language>(() => {
-    return (localStorage.getItem("language") as Language) ?? "ar";
-  });
-  const [theme, setThemeState] = useState<Theme>(() => {
-    return localStorage.getItem("theme_dark") === "true" ? "dark" : "light";
-  });
-  const [locationEnabled, setLocationEnabledState] = useState(() => {
-    return localStorage.getItem("location_enabled") === "true";
-  });
-  const [notificationsEnabled, setNotificationsEnabledState] = useState(() => {
-    return localStorage.getItem("notifications_enabled") === "true";
-  });
+  const [language, setLanguageState] = useState<Language>("ar");
+  const [theme, setThemeState] = useState<Theme>("light");
+  const [locationEnabled, setLocationEnabledState] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabledState] = useState(false);
+
+  useEffect(() => {
+    const storedLanguage = localStorage.getItem("language") as Language;
+    if (storedLanguage) setLanguageState(storedLanguage);
+    const storedTheme = localStorage.getItem("theme_dark") === "true" ? "dark" : "light";
+    setThemeState(storedTheme);
+    setLocationEnabledState(localStorage.getItem("location_enabled") === "true");
+    setNotificationsEnabledState(localStorage.getItem("notifications_enabled") === "true");
+  }, []);
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
@@ -68,30 +69,9 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
 
   const t = (key: string): string => {
     const translations: Record<Language, Record<string, string>> = {
-      ar: {
-        home: "الرئيسية",
-        search: "بحث",
-        add: "إضافة",
-        profile: "ملفي",
-        appointments: "المواعيد",
-        settings: "الإعدادات"
-      },
-      fr: {
-        home: "Accueil",
-        search: "Recherche",
-        add: "Ajouter",
-        profile: "Profil",
-        appointments: "Rendez-vous",
-        settings: "Paramètres"
-      },
-      en: {
-        home: "Home",
-        search: "Search",
-        add: "Add",
-        profile: "Profile",
-        appointments: "Appointments",
-        settings: "Settings"
-      }
+      ar: { home: "الرئيسية", search: "بحث", add: "إضافة", profile: "ملفي", appointments: "المواعيد", settings: "الإعدادات" },
+      fr: { home: "Accueil", search: "Recherche", add: "Ajouter", profile: "Profil", appointments: "Rendez-vous", settings: "Paramètres" },
+      en: { home: "Home", search: "Search", add: "Add", profile: "Profile", appointments: "Appointments", settings: "Settings" }
     };
     return translations[language][key] || key;
   };
